@@ -1,0 +1,306 @@
+<?php
+
+/**
+ * @file
+ */
+
+/***************************************************************
+ * Field Type API hooks
+ ***************************************************************/
+
+/**
+ * Implements hook_field_info().
+ *
+ * Provides the description of the field.
+ */
+function field_fb_like_field_info() {
+  return array(
+    'field_fb_like_btn' => array(
+      'label' => t('Facebook Like Button'),
+      'description' => t('Implements a Facebook Like Button'),
+      'default_widget' => 'field_fb_like_simple_input',
+      'default_formatter' => 'field_fb_like_simple_html',
+    ),
+    'field_fb_comments' => array(
+        'label' => t('Facebook Comments Field'),
+        'description' => t('Implements a Facebook Comments Field'),
+        'default_widget' => 'field_fb_comments_simple_input',
+        'default_formatter' => 'field_fb_comments_simple_html',
+    )
+  );
+}
+
+/**
+ * Implements hook_field_validate().
+ *
+ * Verifies that the RGB field as combined is valid
+ * (6 hex digits with a # at the beginning).
+ */
+function field_fb_like_field_validate($entity_type, $entity, $field, $instance, $langcode, $items, &$errors) {
+}
+
+
+/**
+ * Implements hook_field_is_empty().
+ */
+function field_fb_like_field_is_empty($item, $field) {
+//  return empty($item['rgb']);
+}
+
+/***********************************************************************
+ *  Field Type API: Formatter
+ *
+ *  These are the api hooks that present formatted (themed) output to the
+ *  user.
+ **********************************************************************/
+
+/**
+ * Implements hook_field_formatter_info().
+ */
+function field_fb_like_field_formatter_info() {
+  return array(
+    // this formatter just renders the computed html back to the user
+    'field_fb_like_simple_html' => array(
+      'label' => t('Simple HTML formatter'),
+      'field types' => array('field_fb_like_btn'),
+    ),
+    'field_fb_comments_simple_html'  => array(
+        'label' => t('Simple HTML formatter'),
+        'field types' => array('field_fb_comments'),
+    )
+  );
+}
+
+/**
+ * Implements hook_field_formatter_prepare_view
+ * @param  $entity_type
+ * @param  $entities
+ * @param  $field
+ * @param  $instances
+ * @param  $langcode
+ * @param  $items
+ * @param  $displays
+ * @return void
+ */
+function field_fb_like_field_formatter_prepare_view($entity_type, $entities, $field, $instances, $langcode, &$items, $displays)   {
+   foreach ($entities as $id => $entity)    {
+       $items[$id] = array('field_fb_comments' => 'forcevalue');
+   }
+}
+
+/**
+ * Implements hook_field_formatter_view().
+ *
+ * Two formatters are implemented.
+ * - field_fb_like_simple_text just outputs markup indicating the color that
+ *   was entered and uses an inline style to set the text color to that value.
+ * - field_fb_like_color_background does the same but also changes the
+ *   background color of div.region-content.
+ */
+function field_fb_like_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
+  $element = array();
+  $settings = $instance['settings'];
+  global $base_url;
+
+  switch ($display['type']) {
+    // This formatter simply outputs the field as text and with a color.
+    case 'field_fb_like_simple_html':
+        foreach ($items as $delta => $item) {
+            $element[$delta]['#markup'] =
+                '<fb:like href="' . $settings['url'] . '" send="' . $settings['send_button'] . '" width="' . $settings['width'] . '" show_faces="' . $settings['show_faces'] . '" action="' . $settings['verb'] . '" font="'. $settings['font'] . '"></fb:like>';
+        }
+        break;
+    case 'field_fb_comments_simple_html':
+        foreach($items as $delta => $item)    {
+            $url = $base_url . request_uri();
+            $element[$delta]['#markup'] ='<fb:comments href="' . $url . '" num_posts="' . $settings['num_posts'] . '" width="' . $settings['width'] . '" colorscheme="'. $settings['color_scheme']  .'"></fb:comments>';
+        }
+        break;
+  }
+
+  return $element;
+}
+
+
+/**************************************************************************
+ * Field Type API: Widget
+ *
+ * The widget is the form element used to receive input from the user
+ * when the field is being populated.
+ **************************************************************************/
+
+/**
+ * Implements hook_field_widget_info().
+ *
+ * Three widgets are provided.
+ * - A simple text-only widget where the user enters the '#ffffff'.
+ * - A 3-textfield widget that gathers the red, green, and blue values
+ *   separately.
+ * - A farbtastic colorpicker widget that chooses the value graphically.
+ */
+function field_fb_like_field_widget_info() {
+  return array(
+    'field_fb_like_simple_input' => array(
+       'label' => t('Standard FB Like Input'),
+       'field types' => array('field_fb_like_btn'),
+    ),
+    'field_fb_comments_simple_input' => array(
+       'label' => t('Standard FB Comments Input'),
+       'field types' => array('field_fb_comments'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_settings_form
+ * @param  $field
+ * @param  $instance
+ * @return void
+ */
+function field_fb_like_field_instance_settings_form($field, $instance)    {
+    $settings = $instance['settings'];
+
+    switch($field['type'])  {
+        case 'field_fb_like_btn':
+            $form['url'] = array(
+                '#type' => 'textfield',
+                '#title' => t('URL to Like'),
+                '#description' => t('The URL to like. In XFBML will default to the current page'),
+                '#default_value' => (isset($settings['url']) ? $settings['url'] : '')
+            );
+
+            $form['send_button'] = array(
+                '#type' => 'checkbox',
+                '#title' => 'Send Button',
+                '#return_value' => 'true',
+                '#description' => t('Include a send button. The send button is only available on sites that use the Javascript SDK.'),
+                '#default_value' => (isset($settings['send_button']) ? $settings['send_button'] : '')
+            );
+
+            $form['layout_style'] = array(
+                '#type' => 'select',
+                '#title' => t('Layout Style'),
+                '#options' => array('standard' => t('standard'),
+                                    'button count' => t('button count'),
+                                    'box count' => t('box count')),
+                '#description' => 'determines the size and amount of social context around the button',
+                '#default_value' => (isset($settings['layout_style']) ? $settings['layout_style'] : '')
+            );
+
+            $form['width'] = array(
+                '#type' => 'textfield',
+                '#title' => t('Width'),
+                '#description' => t('The width of the button in pixels'),
+                '#default_value' => (isset($settings['width']) ? $settings['width'] : '')
+            );
+
+            $form['show_faces'] = array(
+                '#type' => 'checkbox',
+                '#title' => 'Show Faces',
+                '#return value' => 'true',
+                '#description' => t('Show profile pictures below the button.'),
+                '#default_value' => (isset($settings['show_faces']) ? $settings['show_faces'] : '')
+            );
+
+            $form['verb'] = array(
+                '#type' => 'select',
+                '#title' => t('Verb to Display'),
+                '#options' => array(
+                     'like' => t('like'),
+                     'recommend' => t('recommend')
+                ),
+
+                '#description' => 'The verb to display in the button. Currently only like and recommend are supported',
+                '#default_value' => (isset($settings['verb']) ? $settings['verb'] : '')
+            );
+
+            $form['color_scheme'] = array(
+                '#type' => 'select',
+                '#title' => t('Color Scheme'),
+                '#options' => array(
+                    'light' => t('light'),
+                    'dark' => t('dark')
+                ),
+                '#description' => 'The color scheme of the plugin.',
+                '#default_value' => (isset($settings['verb']) ? $settings['verb'] : '')
+            );
+
+            $form['font'] = array(
+                '#type' => 'select',
+                '#title' => t('Font'),
+                '#options' => array(
+                    'arial' => t('arial'),
+                    'lucidia grande' => t('lucidia grande'),
+                    'segoe ui' => t('segoe ui'),
+                    'tahoma' => t('tahoma'),
+                    'trebuchet ms' => t('trebuchet ms'),
+                    'verdana' => t('trebuchet ms')
+                 ),
+                '#description' => 'The Font of the plugin',
+                '#default_value' => (isset($settings['font']) ? $settings['font'] : '')
+            );
+            break;
+        case 'field_fb_comments':
+            $form['url'] = array(
+                '#type' => 'textfield',
+                '#title' => t('URL to Comment On'),
+                '#description' => t('The URL for this comments box'),
+                '#default_value' => (isset($settings['url']) ? $settings['url'] : '')
+            );
+
+            $form['num_posts'] = array(
+                '#type' => 'textfield',
+                '#title' => t('Number of posts'),
+                '#description' => t('The number of posts to display by default.'),
+                '#default_value' => (isset($settings['num_posts']) ? $settings['num_posts'] : '')
+            );
+
+            $form['width'] = array(
+                '#type' => 'textfield',
+                '#title' => t('Width'),
+                '#description' => t('The width of the plugin in pixels'),
+                '#default_value' => (isset($settings['width']) ? $settings['width'] : '')
+            );
+
+            $form['color_scheme'] = array(
+                '#type' => 'select',
+                '#title' => t('Color Scheme'),
+                '#options' => array(
+                     'light' => t('light'),
+                     'dark' => t('dark')
+                ),
+
+                '#description' => 'The color scheme of the plugin',
+                '#default_value' => (isset($settings['color_scheme']) ? $settings['color_scheme'] : '')
+            );
+
+            break;
+    }
+
+    return $form;
+}
+
+/**
+ * Validate the individual fields and then convert them into a single HTML RGB
+ * value as text.
+ */
+function field_fb_like_simple_input_validate($element, &$form_state) {
+}
+
+/**
+ * Implements hook_field_widget_error().
+ */
+function field_fb_like_field_widget_error($element, $error, $form, &$form_state) {
+  switch ($error['error']) {
+    case 'field_fb_like_invalid':
+      form_error($element, $error['message']);
+      break;
+  }
+}
+
+/**
+ * A simple page to explain to the developer what to do.
+ */
+function _field_fb_like_page() {
+  return t("Implements the facebook like button. See" . url('http://developers.facebook.com/docs/reference/plugins/like/') . "for more information.");
+}

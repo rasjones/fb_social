@@ -1,0 +1,8 @@
+name = FB Like Field
+description = Facebook Like Button as a field.
+package = Drupal for Facebook
+core = 7.x
+dependencies[] = fb
+
+files[] = field_fb_like.test
+files[] = field_fb_like.module
